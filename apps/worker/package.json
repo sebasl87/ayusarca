@@ -1,0 +1,29 @@
+{
+  "name": "worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo \"(skip)\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "echo \"(skip)\""
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.0.2",
+    "@siradig/shared": "workspace:*",
+    "axios": "^1.10.0",
+    "axios-cookiejar-support": "^6.0.4",
+    "bullmq": "^5.58.5",
+    "cheerio": "^1.1.2",
+    "ioredis": "^5.7.0",
+    "playwright": "^1.55.0",
+    "tough-cookie": "^5.1.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5.5.4"
+  }
+}

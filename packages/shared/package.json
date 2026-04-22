@@ -1,0 +1,22 @@
+{
+  "name": "@siradig/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./schemas/factura": "./src/schemas/factura.ts",
+    "./types/arca": "./src/types/arca.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "echo \"(skip)\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "echo \"(skip)\""
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
