@@ -101,3 +101,18 @@ create policy "users_own_jobs" on public.load_jobs
 
 create policy "users_own_audit" on public.audit_log
   for select using (auth.uid() = user_id);
+
+-- Storage
+insert into storage.buckets (id, name, public)
+  values ('facturas', 'facturas', false)
+  on conflict (id) do nothing;
+
+create policy "facturas_storage_all" on storage.objects
+  for all using (
+    bucket_id = 'facturas'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  )
+  with check (
+    bucket_id = 'facturas'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );

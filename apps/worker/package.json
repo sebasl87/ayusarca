@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
     "lint": "echo \"(skip)\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
