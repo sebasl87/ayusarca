@@ -32,17 +32,17 @@ export const ARCA_ENDPOINTS: Record<ArcaCategoria, ArcaFormEndpoint> = {
   educacion: {
     verPath: "/radig/jsp/verGastosEducacion.do",
     guardarPath: "/radig/jsp/guardarGastosEducacion.do",
-    experimental: true,
+    experimental: false,
   },
   alquiler: {
     verPath: "/radig/jsp/verAlquileres.do",
     guardarPath: "/radig/jsp/guardarAlquileres.do",
-    experimental: true,
+    experimental: false,
   },
   medicina_prepaga: {
     verPath: "/radig/jsp/verMedicinaPrepaga.do",
     guardarPath: "/radig/jsp/guardarMedicinaPrepaga.do",
-    experimental: true,
+    experimental: false,
   },
   primas_seguro: {
     verPath: "/radig/jsp/verPrimasSeguro.do",
