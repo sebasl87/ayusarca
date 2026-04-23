@@ -8768,6 +8768,7 @@ __metadata:
     tailwind-merge: ^3.3.1
     tailwindcss: ^3.4.17
     typescript: ^5
+    vitest: ^3.2.4
     zod: ^3.25.76
   languageName: unknown
   linkType: soft

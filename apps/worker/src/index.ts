@@ -53,3 +53,15 @@ const timer = setInterval(async () => {
   }
 }, KEEPALIVE_INTERVAL_MS);
 timer.unref();
+
+logger.info("worker_started");
+
+async function shutdown(signal: string) {
+  logger.info({ signal }, "worker_shutdown");
+  clearInterval(timer);
+  await Promise.allSettled([cargarWorker.close(), testWorker.close(), queue.close()]);
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));

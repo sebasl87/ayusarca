@@ -39,3 +39,17 @@ export class ArcaSessionExpiredError extends AppError {
     super("arca_session_expired_error", message, { retryable: true, cause: opts?.cause });
   }
 }
+
+export class ArcaCaptchaError extends AppError {
+  constructor(message: string, opts?: { cause?: unknown }) {
+    super("arca_captcha_error", message, { retryable: false, cause: opts?.cause });
+  }
+}
+
+export class ArcaValidationError extends AppError {
+  arcaMessage: string;
+  constructor(arcaMessage: string, opts?: { cause?: unknown }) {
+    super("arca_validation_error", arcaMessage, { retryable: false, cause: opts?.cause });
+    this.arcaMessage = arcaMessage;
+  }
+}

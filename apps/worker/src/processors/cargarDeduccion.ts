@@ -11,7 +11,9 @@ import { getArcaSession } from "../arca/session";
 import { decryptCredential } from "../lib/crypto/credentials";
 import { logger } from "../lib/logger";
 import { supabaseAdmin } from "../lib/supabase";
-import { ArcaRateLimitError, ValidationError } from "@siradig/shared/errors";
+import { ArcaRateLimitError, ArcaValidationError, ValidationError } from "@siradig/shared/errors";
+
+import { friendlyArcaError } from "../arca/errorMessages";
 
 export type CargarDeduccionJobData = {
   userId: string;
@@ -152,7 +154,7 @@ export async function cargarDeduccion(job: Job<CargarDeduccionJobData>) {
             ? await new AlquilerAdapter(session.jsessionid).guardar({ ...input, idConcepto })
             : await new MedicinaPrepagaAdapter(session.jsessionid).guardar({ ...input, idConcepto });
 
-    if (!res.success) throw new Error(res.error ?? "arca_error");
+    if (!res.success) throw new ArcaValidationError(friendlyArcaError(res.error ?? "arca_error"));
 
     await supabaseAdmin
       .from("facturas")
@@ -177,8 +179,9 @@ export async function cargarDeduccion(job: Job<CargarDeduccionJobData>) {
     return { ok: true, arcaId: res.arcaId };
   } catch (e) {
     const message = e instanceof Error ? e.message : "error";
-    if (e instanceof ValidationError) job.discard();
+    if (e instanceof ValidationError || e instanceof ArcaValidationError) job.discard();
     if (e instanceof ArcaRateLimitError) logger.error({ err: e }, "arca_rate_limited");
+    logger.error({ err: e, facturaId, userId }, "cargar_deduccion_failed");
     await supabaseAdmin
       .from("facturas")
       .update({

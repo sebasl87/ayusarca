@@ -1,4 +1,4 @@
-import { ArcaLoginError, ArcaSessionExpiredError } from "@siradig/shared/errors";
+import { ArcaCaptchaError, ArcaLoginError, ArcaSessionExpiredError } from "@siradig/shared/errors";
 
 import { loginToArca } from "./login";
 import { arcaKeepalive } from "./keepalive";
@@ -82,8 +82,7 @@ export async function getArcaSession(params: { userId: string; cuit: string; cla
       return session;
     } catch (e) {
       lastError = e;
-      const message = e instanceof Error ? e.message : "arca_login_failed";
-      if (message === "captcha_required") throw new ArcaLoginError(message, { cause: e });
+      if (e instanceof ArcaCaptchaError || e instanceof ArcaLoginError) throw e;
       await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
     }
   }

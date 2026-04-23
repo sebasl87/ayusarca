@@ -77,6 +77,14 @@ export async function POST(req: Request) {
     }
 
     created.push({ id: row.id, storagePath, originalName: file.name });
+
+    void supabase.from("audit_log").insert({
+      user_id: user.id,
+      action: "factura_uploaded",
+      resource_type: "factura",
+      resource_id: row.id,
+      metadata: { original_filename: file.name, mime_type: file.type, size_bytes: file.size },
+    });
   }
 
   return NextResponse.json({ ok: true, facturas: created });

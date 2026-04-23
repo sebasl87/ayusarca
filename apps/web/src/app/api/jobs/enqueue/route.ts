@@ -98,6 +98,14 @@ export async function POST(req: Request) {
       .eq("user_id", user.id);
 
     jobs.push({ facturaId, loadJobId: loadJob.id, bullmqJobId: String(job.id) });
+
+    void supabase.from("audit_log").insert({
+      user_id: user.id,
+      action: "job_enqueued",
+      resource_type: "load_job",
+      resource_id: loadJob.id,
+      metadata: { factura_id: facturaId, bullmq_job_id: String(job.id) },
+    });
   }
 
   return NextResponse.json({ ok: true, jobs });
