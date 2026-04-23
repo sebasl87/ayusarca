@@ -41,16 +41,24 @@ export function SignupForm() {
     setIsSubmitting(true);
     try {
       const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.signUp({
+      const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
+      const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
+        options: { emailRedirectTo: redirectTo },
       });
       if (error) {
         toast.error(error.message);
         return;
       }
-      toast.success("Cuenta creada");
-      router.push("/dashboard");
+      // Si hay sesión inmediata (email confirmation desactivado) → dashboard
+      // Si no → avisar que revisen el email
+      if (data.session) {
+        toast.success("Cuenta creada");
+        router.push("/dashboard");
+      } else {
+        toast.success("Revisá tu email para confirmar la cuenta");
+      }
       router.refresh();
     } finally {
       setIsSubmitting(false);
