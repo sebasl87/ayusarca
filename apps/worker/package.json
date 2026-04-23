@@ -13,6 +13,7 @@
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
     "@siradig/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.49.1",
     "axios": "^1.10.0",
     "axios-cookiejar-support": "^6.0.4",
     "bullmq": "^5.58.5",

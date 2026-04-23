@@ -3,10 +3,11 @@ import type { ResponseCookie } from "next/dist/compiled/@edge-runtime/cookies";
 
 import { createServerClient } from "@supabase/ssr";
 
-import { clientEnv } from "@/lib/env";
+import { getClientEnv } from "@/lib/env";
 
 export function createSupabaseServerClient() {
   const cookieStore = cookies();
+  const clientEnv = getClientEnv();
 
   return createServerClient(
     clientEnv.NEXT_PUBLIC_SUPABASE_URL,

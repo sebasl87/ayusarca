@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { FacturasList } from "@/components/organisms/FacturasList";
+
 export default function FacturasPage() {
   return (
     <div className="space-y-4">
@@ -12,9 +14,7 @@ export default function FacturasPage() {
           Subir facturas
         </Link>
       </div>
-      <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground">
-        Listado y edición inline de facturas (pendiente).
-      </div>
+      <FacturasList />
     </div>
   );
 }

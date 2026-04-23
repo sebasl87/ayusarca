@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
 
-import { serverEnv } from "@/lib/env";
+import { getServerEnv } from "@/lib/env";
 
 type EncryptedCredential = {
   ciphertext: string;
@@ -9,7 +9,7 @@ type EncryptedCredential = {
 };
 
 export function encryptCredential(plaintext: string, userId: string): EncryptedCredential {
-  const masterKeyHex = serverEnv.CREDENTIALS_MASTER_KEY;
+  const masterKeyHex = getServerEnv().CREDENTIALS_MASTER_KEY;
   if (!masterKeyHex) throw new Error("Missing CREDENTIALS_MASTER_KEY");
   const key = scryptSync(Buffer.from(masterKeyHex, "hex"), Buffer.from(userId), 32);
   const iv = randomBytes(12);
@@ -24,7 +24,7 @@ export function encryptCredential(plaintext: string, userId: string): EncryptedC
 }
 
 export function decryptCredential(enc: EncryptedCredential, userId: string) {
-  const masterKeyHex = serverEnv.CREDENTIALS_MASTER_KEY;
+  const masterKeyHex = getServerEnv().CREDENTIALS_MASTER_KEY;
   if (!masterKeyHex) throw new Error("Missing CREDENTIALS_MASTER_KEY");
   const key = scryptSync(Buffer.from(masterKeyHex, "hex"), Buffer.from(userId), 32);
   const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(enc.iv, "base64"));

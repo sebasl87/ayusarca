@@ -1,11 +1,15 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 const schema = z
   .object({
@@ -26,13 +30,31 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 export function SignupForm() {
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "", confirmPassword: "" },
   });
 
-  const onSubmit = (values: FormValues) => {
-    void values;
+  const onSubmit = async (values: FormValues) => {
+    setIsSubmitting(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      toast.success("Cuenta creada");
+      router.push("/dashboard");
+      router.refresh();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -48,7 +70,7 @@ export function SignupForm() {
         type="password"
         {...form.register("confirmPassword")}
       />
-      <Button type="submit" className="w-full">
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
         Crear cuenta
       </Button>
     </form>

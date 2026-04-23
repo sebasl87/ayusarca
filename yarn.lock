@@ -6095,11 +6095,13 @@ __metadata:
     "@types/react": ^18
     "@types/react-dom": ^18
     autoprefixer: ^10.4.20
+    bullmq: ^5.58.5
     class-variance-authority: ^0.7.1
     clsx: ^2.1.1
     eslint: ^8.57.1
     eslint-config-next: 14.2.35
     framer-motion: ^12.12.2
+    ioredis: ^5.7.0
     jotai: ^2.13.1
     lucide-react: ^0.544.0
     next: 14.2.35
@@ -6235,6 +6237,7 @@ __metadata:
   dependencies:
     "@node-rs/argon2": ^2.0.2
     "@siradig/shared": "workspace:*"
+    "@supabase/supabase-js": ^2.49.1
     "@types/node": ^20
     axios: ^1.10.0
     axios-cookiejar-support: ^6.0.4
