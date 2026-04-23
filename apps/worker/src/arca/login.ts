@@ -20,10 +20,13 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
     await page.goto("https://auth.afip.gob.ar/contribuyente_/login.xhtml");
     await page.fill("#F1\\:username", cuit);
     await page.click("#F1\\:btnSiguiente");
-    await page.waitForSelector("#F1\\:password, #F1\\:captcha", { timeout: 10000 });
+    // Esperar que aparezca el campo de password (visible). El #F1:captcha es un
+    // hidden input que siempre existe en el DOM, así que no lo usamos en el selector.
+    await page.waitForSelector("#F1\\:password", { state: "visible", timeout: 10000 });
 
-    const captcha = await page.$("#F1\\:captcha");
-    if (captcha) throw new ArcaCaptchaError("captcha_required");
+    // El captcha real es visible — el hidden input es siempre parte del DOM.
+    const captchaVisible = await page.isVisible("img[id*='captcha'], .captcha, [class*='captcha']:not(input[type='hidden'])");
+    if (captchaVisible) throw new ArcaCaptchaError("captcha_required");
 
     await page.fill("#F1\\:password", claveFiscal);
     await page.click("#F1\\:btnIngresar");
