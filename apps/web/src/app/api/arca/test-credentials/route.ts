@@ -37,7 +37,7 @@ export async function POST() {
       "test",
       { userId: user.id },
       {
-        jobId: `test-credentials:${user.id}`,
+        jobId: `test-credentials_${user.id}`,
         attempts: 3,
         backoff: { type: "exponential", delay: 1000 },
         removeOnComplete: 50,
