@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
   const { data: factura, error: facturaError } = await supabase
     .from("facturas")
-    .select("id, user_id, storage_bucket, storage_path, mime_type")
+    .select("id, user_id, storage_path, mime_type")
     .eq("id", facturaId)
     .eq("user_id", user.id)
     .single();
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     .eq("user_id", user.id);
 
   const { data: download, error: downloadError } = await supabase.storage
-    .from(factura.storage_bucket)
+    .from("facturas")
     .download(factura.storage_path);
 
   if (downloadError || !download) {
@@ -115,9 +115,8 @@ export async function POST(req: Request) {
         extracted_fecha_emision: data.fecha_emision,
         extracted_monto_total: data.monto_total,
         extracted_categoria_sugerida: data.categoria_sugerida,
-        extracted_confianza: data.confianza,
-        extracted_observaciones: data.observaciones,
-        extracted_raw: raw,
+        extraction_confidence: data.confianza,
+        extraction_raw_response: raw,
         error_message: null,
         updated_at: new Date().toISOString(),
       })
@@ -140,4 +139,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
-

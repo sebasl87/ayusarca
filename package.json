@@ -11,9 +11,31 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
-    "test": "turbo test"
+    "test": "turbo test",
+    "e2e": "playwright test",
+    "prepare": "husky install",
+    "lint-staged": "lint-staged",
+    "commitlint": "commitlint",
+    "inspect-arca-form": "tsx scripts/inspect-arca-form.ts"
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  },
+  "lint-staged": {
+    "**/*.{ts,tsx,js,jsx}": [
+      "node -e \"require('node:child_process').execSync('corepack yarn lint', { stdio: 'inherit' })\"",
+      "node -e \"require('node:child_process').execSync('corepack yarn typecheck', { stdio: 'inherit' })\""
+    ]
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@playwright/test": "^1.55.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2",
+    "tsx": "^4.20.6",
     "turbo": "^2.5.0",
     "typescript": "^5.5.4"
   }

@@ -7,6 +7,7 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   CREDENTIALS_MASTER_KEY: z.string().min(64),
+  LOG_LEVEL: z.string().min(1).default("info"),
 });
 
 export const env = envSchema.parse({
@@ -16,4 +17,5 @@ export const env = envSchema.parse({
   SUPABASE_URL: process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   CREDENTIALS_MASTER_KEY: process.env.CREDENTIALS_MASTER_KEY,
+  LOG_LEVEL: process.env.LOG_LEVEL,
 });

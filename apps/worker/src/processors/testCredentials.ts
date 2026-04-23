@@ -1,7 +1,8 @@
 import type { Job } from "bullmq";
 
-import { loginToArca } from "../arca/login";
+import { getArcaSession } from "../arca/session";
 import { decryptCredential } from "../lib/crypto/credentials";
+import { logger } from "../lib/logger";
 import { supabaseAdmin } from "../lib/supabase";
 
 export type TestCredentialsJobData = {
@@ -27,7 +28,12 @@ export async function testCredentials(job: Job<TestCredentialsJobData>) {
     userId
   );
 
-  await loginToArca(data.cuit, claveFiscal);
+  try {
+    await getArcaSession({ userId, cuit: data.cuit, claveFiscal });
+  } catch (e) {
+    logger.error({ err: e }, "arca_test_credentials_failed");
+    throw e;
+  }
 
   await supabaseAdmin
     .from("arca_credentials")
@@ -36,4 +42,3 @@ export async function testCredentials(job: Job<TestCredentialsJobData>) {
 
   return { ok: true };
 }
-

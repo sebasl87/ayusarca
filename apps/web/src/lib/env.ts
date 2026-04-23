@@ -22,6 +22,7 @@ const serverEnvSchema = z.object({
   REDIS_URL: z.string().min(1).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   CREDENTIALS_MASTER_KEY: z.string().min(64).optional(),
+  LOG_LEVEL: z.string().min(1).optional(),
 });
 
 let cachedServerEnv: z.infer<typeof serverEnvSchema> | null = null;
@@ -32,6 +33,7 @@ export function getServerEnv() {
     REDIS_URL: process.env.REDIS_URL,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     CREDENTIALS_MASTER_KEY: process.env.CREDENTIALS_MASTER_KEY,
+    LOG_LEVEL: process.env.LOG_LEVEL,
   });
   return cachedServerEnv;
 }

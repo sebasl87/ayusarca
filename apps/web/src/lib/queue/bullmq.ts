@@ -14,6 +14,13 @@ export function getRedisConnection() {
 }
 
 export function getQueue(name: string) {
-  return new Queue(name, { connection: getRedisConnection() });
+  return new Queue(name, {
+    connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 1000 },
+      removeOnComplete: 100,
+      removeOnFail: 100,
+    },
+  });
 }
-

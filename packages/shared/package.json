@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./errors": "./src/errors.ts",
     "./schemas/factura": "./src/schemas/factura.ts",
     "./types/arca": "./src/types/arca.ts"
   },

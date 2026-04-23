@@ -36,7 +36,13 @@ export async function POST() {
     job = await queue.add(
       "test",
       { userId: user.id },
-      { removeOnComplete: 50, removeOnFail: 50 }
+      {
+        jobId: `test-credentials:${user.id}`,
+        attempts: 3,
+        backoff: { type: "exponential", delay: 1000 },
+        removeOnComplete: 50,
+        removeOnFail: 50,
+      }
     );
   } catch (e) {
     const message = e instanceof Error ? e.message : "queue_error";

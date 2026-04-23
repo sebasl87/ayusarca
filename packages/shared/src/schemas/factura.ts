@@ -25,6 +25,7 @@ export const facturaEditedSchema = z.object({
     "intereses_hipotecarios",
   ]),
   mesDeduccion: z.number().int().min(1).max(12),
+  idConcepto: z.number().int().positive().optional(),
 });
 
 export type FacturaEdited = z.infer<typeof facturaEditedSchema>;

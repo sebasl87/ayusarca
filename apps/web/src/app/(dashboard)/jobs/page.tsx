@@ -1,7 +1,10 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { z } from "zod";
+
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 const jobSchema = z.object({
   id: z.string(),
@@ -14,6 +17,7 @@ const jobSchema = z.object({
 });
 
 export default function JobsPage() {
+  const qc = useQueryClient();
   const jobsQuery = useQuery({
     queryKey: ["jobs"],
     queryFn: async () => {
@@ -25,8 +29,54 @@ export default function JobsPage() {
       if (!res.ok || !parsed.success) throw new Error("fetch_failed");
       return parsed.data.jobs;
     },
-    refetchInterval: 2000,
   });
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    let subscriptionActive = true;
+
+    const run = async () => {
+      const { data } = await supabase.auth.getUser();
+      const userId = data.user?.id;
+      if (!userId) return;
+
+      const channel = supabase
+        .channel("jobs-changes")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "load_jobs",
+            filter: `user_id=eq.${userId}`,
+          },
+          () => {
+            qc.invalidateQueries({ queryKey: ["jobs"] });
+          }
+        )
+        .subscribe();
+
+      const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+        qc.invalidateQueries({ queryKey: ["jobs"] });
+      });
+
+      return () => {
+        authListener.subscription.unsubscribe();
+        supabase.removeChannel(channel);
+      };
+    };
+
+    let cleanup: (() => void) | null = null;
+    void run().then((c) => {
+      if (subscriptionActive) cleanup = c ?? null;
+      else c?.();
+    });
+
+    return () => {
+      subscriptionActive = false;
+      cleanup?.();
+    };
+  }, [qc]);
 
   return (
     <div className="space-y-4">

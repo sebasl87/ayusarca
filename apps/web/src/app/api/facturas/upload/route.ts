@@ -58,10 +58,10 @@ export async function POST(req: Request) {
       .from("facturas")
       .insert({
         user_id: user.id,
-        storage_bucket: "facturas",
         storage_path: storagePath,
         original_filename: file.name,
         mime_type: file.type,
+        size_bytes: file.size,
         status: "uploaded",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

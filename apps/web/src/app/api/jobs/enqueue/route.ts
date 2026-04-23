@@ -8,6 +8,8 @@ const bodySchema = z.object({
   facturaIds: z.array(z.string().min(1)).min(1),
 });
 
+const MAX_ATTEMPTS = 5;
+
 export async function POST(req: Request) {
   const supabase = createSupabaseServerClient();
   const {
@@ -58,6 +60,7 @@ export async function POST(req: Request) {
         user_id: user.id,
         factura_id: facturaId,
         status: "queued",
+        max_attempts: MAX_ATTEMPTS,
         created_at: new Date().toISOString(),
       })
       .select("id")
@@ -73,7 +76,13 @@ export async function POST(req: Request) {
     const job = await queue.add(
       "cargar",
       { userId: user.id, facturaId, loadJobId: loadJob.id },
-      { removeOnComplete: 100, removeOnFail: 100 }
+      {
+        jobId: loadJob.id,
+        attempts: MAX_ATTEMPTS,
+        backoff: { type: "exponential", delay: 1000 },
+        removeOnComplete: 100,
+        removeOnFail: 100,
+      }
     );
 
     await supabase
