@@ -1,2 +1,62 @@
 #!/usr/bin/env sh
-corepack yarn commitlint --edit "$1"
+set -e
+
+ROOT_DIR="$(cd "$(dirname -- "$0")/.." && pwd)"
+export COREPACK_HOME="$ROOT_DIR/.corepack"
+
+NVM_NODE_DIR=""
+NVM_NODE_MAJOR=""
+for dir in "$HOME/.nvm/versions/node"/v*; do
+  if [ ! -d "$dir" ]; then
+    continue
+  fi
+  major="$(basename "$dir" | sed -E 's/^v([0-9]+).*/\1/')"
+  case "$major" in
+    ""|*[!0-9]*)
+      continue
+      ;;
+  esac
+  if [ -z "$NVM_NODE_MAJOR" ] || [ "$major" -gt "$NVM_NODE_MAJOR" ]; then
+    NVM_NODE_MAJOR="$major"
+    NVM_NODE_DIR="$dir"
+  fi
+done
+
+NODE_BIN=""
+if command -v node >/dev/null 2>&1; then
+  NODE_BIN="$(command -v node)"
+else
+  for candidate in \
+    "$NVM_NODE_DIR/bin/node" \
+    /opt/homebrew/bin/node \
+    /usr/local/bin/node \
+    /usr/bin/node; do
+    if [ -x "$candidate" ]; then
+      NODE_BIN="$candidate"
+      break
+    fi
+  done
+fi
+
+COREPACK_BIN=""
+if command -v corepack >/dev/null 2>&1; then
+  COREPACK_BIN="$(command -v corepack)"
+else
+  for candidate in \
+    "$NVM_NODE_DIR/bin/corepack" \
+    /opt/homebrew/bin/corepack \
+    /usr/local/bin/corepack \
+    /usr/bin/corepack; do
+    if [ -x "$candidate" ]; then
+      COREPACK_BIN="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -z "$NODE_BIN" ] || [ -z "$COREPACK_BIN" ]; then
+  printf "%s\n" "husky: node/corepack non trovati (PATH ridotto). Avvia l'IDE dal terminale o installa Node/Corepack in un path globale." >&2
+  exit 1
+fi
+
+"$NODE_BIN" "$COREPACK_BIN" yarn commitlint --edit "$1"

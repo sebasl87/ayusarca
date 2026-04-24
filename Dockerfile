@@ -1,19 +1,10 @@
-FROM node:20-slim
-
-# Playwright / Chromium system dependencies
-RUN apt-get update && apt-get install -y \
-    ca-certificates fonts-liberation libglib2.0-0t64 libnss3 libnspr4 \
-    libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 libdrm2 libdbus-1-3 \
-    libxcb1 libxkbcommon0 libx11-6 libxcomposite1 libxdamage1 libxext6 \
-    libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64 \
-    libatspi2.0-0t64 libwayland-client0 \
-    && rm -rf /var/lib/apt/lists/*
+FROM node:20-bookworm-slim
 
 RUN corepack enable && corepack prepare yarn@3.6.3 --activate
 
 WORKDIR /app
 
-# Copy workspace manifests first for better layer caching
+# Copy workspace manifests for layer caching
 COPY package.json yarn.lock .yarnrc.yml ./
 COPY .yarn/ ./.yarn/
 COPY packages/shared/package.json ./packages/shared/
@@ -21,8 +12,8 @@ COPY apps/worker/package.json ./apps/worker/
 
 RUN yarn install --immutable
 
-# Install Playwright Chromium (uses already-installed system libs above)
-RUN npx playwright install chromium
+# playwright install --with-deps maneja los paquetes de sistema correctamente según el OS
+RUN node_modules/.bin/playwright install chromium --with-deps
 
 COPY tsconfig.base.json ./
 COPY packages/shared/ ./packages/shared/
