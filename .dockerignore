@@ -1,0 +1,10 @@
+.git
+.turbo
+node_modules
+apps/web
+apps/worker/dist
+**/.next
+**/node_modules
+*.log
+.env*
+HANDOFF.md

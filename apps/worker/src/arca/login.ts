@@ -9,9 +9,22 @@ export type ArcaLoginResult = {
 
 const HEADLESS = process.env.ARCA_HEADLESS !== "false";
 
+async function closeBrowserSafe(browser: Browser) {
+  await Promise.race([
+    browser.close().catch(() => {}),
+    new Promise<void>((resolve) => setTimeout(resolve, 8000)),
+  ]);
+  try {
+    const proc = (browser as unknown as { process?: () => { kill: (signal: string) => void } | null })
+      .process?.();
+    proc?.kill("SIGKILL");
+  } catch {}
+}
+
 export async function loginToArca(cuit: string, claveFiscal: string) {
   let browser: Browser | null = null;
   try {
+    process.stderr.write("[login] step:1 launching browser\n");
     browser = await chromium.launch({ headless: HEADLESS });
     const context: BrowserContext = await browser.newContext({
       userAgent:
@@ -19,7 +32,7 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
     });
     let page: Page = await context.newPage();
 
-    // Paso 1: login en auth.afip.gob.ar
+    process.stderr.write("[login] step:2 navigating to auth.afip.gob.ar\n");
     await page.goto("https://auth.afip.gob.ar/contribuyente_/login.xhtml");
     await page.fill("#F1\\:username", cuit);
     await page.click("#F1\\:btnSiguiente");
@@ -30,79 +43,124 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
     );
     if (captchaVisible) throw new ArcaCaptchaError("captcha_required");
 
+    process.stderr.write("[login] step:3 filling password\n");
     await page.fill("#F1\\:password", claveFiscal);
     await page.click("#F1\\:btnIngresar");
 
-    // Paso 2: esperar redirect al portal
+    process.stderr.write("[login] step:4 waiting for portal redirect\n");
     await page.waitForURL(/portalcf\.cloud\.afip\.gob\.ar/, { timeout: 15000 });
     await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
 
-    // Loguear todos los links del portal para debug
-    const allLinks = await page.evaluate(() =>
-      Array.from(document.querySelectorAll("a")).map((a) => ({
-        text: (a as HTMLAnchorElement).textContent?.trim().slice(0, 80),
-        href: (a as HTMLAnchorElement).href,
-        title: (a as HTMLAnchorElement).title,
-      }))
-    );
-    process.stderr.write(`[login] Portal URL: ${page.url()} | Links: ${allLinks.length}\n`);
-    for (const l of allLinks) {
-      if (l.href || l.title || l.text) {
-        process.stderr.write(`  "${l.text}" href=${l.href} title=${l.title}\n`);
-      }
-    }
+    process.stderr.write(`[login] step:5 on portal URL: ${page.url()}\n`);
 
-    // Paso 3: buscar y clickear SiRADIG para disparar SSO
     const siradgEl = page.getByText(/SiRADIG|F572|RADIG/i).first();
     const count = await siradgEl.count();
-    process.stderr.write(`[login] Elementos con texto SiRADIG/F572/RADIG: ${count}\n`);
+    process.stderr.write(`[login] step:6 SiRADIG elements: ${count}\n`);
 
     if (count > 0) {
-      // SiRADIG puede abrir una nueva pestaña
-      const newPagePromise = context.waitForEvent("page", { timeout: 4000 }).catch(() => null);
+      // Listen for any new tabs opened by SiRADIG click
+      const newPagePromise = context.waitForEvent("page", { timeout: 6000 }).catch(() => null);
       await siradgEl.click();
+      process.stderr.write("[login] step:7 SiRADIG clicked\n");
       const newTab = await newPagePromise;
 
       if (newTab) {
-        process.stderr.write("[login] SiRADIG abrió nueva pestaña\n");
+        process.stderr.write("[login] step:8 new tab detected\n");
+        // Wait for the new tab to start loading
         await newTab.waitForLoadState("domcontentloaded", { timeout: 15000 }).catch(() => {});
         page = newTab;
+        process.stderr.write(`[login] step:8b new tab URL: ${page.url()}\n`);
       }
 
-      await page.waitForURL(/serviciosjava2\.afip\.gob\.ar/, { timeout: 20000 });
+      process.stderr.write("[login] step:9 waiting for serviciosjava2 URL\n");
+      await page.waitForURL(/serviciosjava2\.afip\.gob\.ar/, { timeout: 25000 });
+      process.stderr.write(`[login] step:10 on serviciosjava2 URL: ${page.url()}\n`);
     } else {
-      process.stderr.write(`[login] No se encontró SiRADIG — fallback a navegación directa\n`);
+      process.stderr.write("[login] step:7 no SiRADIG element — direct navigation fallback\n");
       await page.goto("https://serviciosjava2.afip.gob.ar/radig/jsp/verMenuEmpleado.do");
     }
 
-    // Paso 4: pantalla intermedia "Seleccione la Persona a representar"
-    if (page.url().includes("menu_sel_empresa")) {
-      process.stderr.write("[login] Pantalla de selección de persona — haciendo click en la primera opción\n");
-      const personaLink = page.locator("table a, .contenido a, a[href*='verMenu'], a[href*='empresa']").first();
-      if (await personaLink.count() > 0) {
-        await personaLink.click();
-        await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+    // Handle "Seleccione la Persona" intermediate screen
+    const currentUrl = page.url();
+    process.stderr.write(`[login] step:11 checking for persona screen — URL: ${currentUrl}\n`);
+
+    if (currentUrl.includes("menu_sel_empresa")) {
+      process.stderr.write("[login] step:12 persona selection screen detected\n");
+
+      // Esperar a que la página esté estable antes de tocar el DOM
+      await page.waitForLoadState("domcontentloaded", { timeout: 10000 }).catch(() => {});
+
+      // Usar evaluate() para evitar que Playwright bloquee en navegación pendiente
+      const hasLink = await page.evaluate(() => {
+        const selectors = ["table a", ".contenido a", "a[href*='verMenu']", "a[href*='empresa']"];
+        for (const sel of selectors) {
+          if (document.querySelector(sel)) return true;
+        }
+        return false;
+      }).catch(() => false);
+
+      process.stderr.write(`[login] step:12b hasLink: ${hasLink}\n`);
+
+      if (hasLink) {
+        // Escuchar nueva pestaña ANTES del click
+        const personaTabPromise = context.waitForEvent("page", { timeout: 5000 }).catch(() => null);
+
+        await page.evaluate(() => {
+          const selectors = ["table a", ".contenido a", "a[href*='verMenu']", "a[href*='empresa']"];
+          for (const sel of selectors) {
+            const link = document.querySelector(sel) as HTMLAnchorElement | null;
+            if (link) { link.click(); return; }
+          }
+        });
+        process.stderr.write("[login] step:13 persona link clicked via evaluate\n");
+
+        const personaTab = await personaTabPromise;
+        if (personaTab) {
+          process.stderr.write("[login] step:13b persona opened new tab\n");
+          await personaTab.waitForLoadState("domcontentloaded", { timeout: 15000 }).catch(() => {});
+          page = personaTab;
+        } else {
+          await page.waitForLoadState("domcontentloaded", { timeout: 15000 }).catch(() => {});
+        }
+        process.stderr.write(`[login] step:14 after persona click — URL: ${page.url()}\n`);
       }
     }
 
-    // Esperar que la página cargue (no asumimos selectores específicos del menú)
-    await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+    // Final wait — make sure the page is stable
+    process.stderr.write("[login] step:15 final waitForLoadState\n");
+    await page.waitForLoadState("domcontentloaded", { timeout: 15000 }).catch(() => {});
+    process.stderr.write(`[login] step:16 final URL: ${page.url()}\n`);
 
-    // JSESSIONID puede estar en cookies o embebido en la URL (Java URL rewriting)
-    const cookies = await context.cookies("https://serviciosjava2.afip.gob.ar");
-    let jsessionid = cookies.find((c) => c.name === "JSESSIONID")?.value;
+    // JSESSIONID: buscar en cookies (todos los dominios) y en URL
+    const allCookies = await context.cookies();
+    process.stderr.write(`[login] step:16b all cookies: ${JSON.stringify(allCookies.map((c) => ({ name: c.name, domain: c.domain, path: c.path })))}\n`);
+
+    let jsessionid = allCookies.find((c) => c.name === "JSESSIONID")?.value;
     if (!jsessionid) {
-      const match = page.url().match(/jsessionid=([A-F0-9]+)/i);
+      const match = page.url().match(/jsessionid=([A-F0-9.]+)/i);
       if (match) jsessionid = match[1];
     }
-    process.stderr.write(`[login] JSESSIONID: ${jsessionid ? "OK" : "NOT FOUND"} | URL: ${page.url()}\n`);
+    // Fallback: extraer del HTML embebido (algunos JSP Java lo emiten en el <form> o JS)
+    if (!jsessionid) {
+      jsessionid = await page.evaluate(() => {
+        const m = document.body?.innerHTML?.match(/jsessionid=([A-F0-9]+)/i);
+        return m ? m[1] : null;
+      }).catch(() => null) ?? undefined;
+    }
+
+    process.stderr.write(`[login] step:17 JSESSIONID: ${jsessionid ? "OK" : "NOT FOUND"} | URL: ${page.url()}\n`);
     if (!jsessionid) throw new ArcaLoginError("jsessionid_missing");
 
+    process.stderr.write("[login] step:18 returning — closing browser\n");
     return { jsessionid, expiresAt: new Date(Date.now() + 20 * 60 * 1000) };
   } catch (e) {
     if (e instanceof ArcaCaptchaError || e instanceof ArcaLoginError) throw e;
     throw new ArcaLoginError(`arca_login_failed: ${e instanceof Error ? e.message : String(e)}`);
   } finally {
-    await browser?.close();
+    if (browser) {
+      process.stderr.write("[login] finally: closing browser\n");
+      await closeBrowserSafe(browser);
+      process.stderr.write("[login] finally: browser closed\n");
+    }
   }
 }
