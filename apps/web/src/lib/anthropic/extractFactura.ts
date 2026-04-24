@@ -37,21 +37,10 @@ function createClient() {
 }
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
-  const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
-  GlobalWorkerOptions.workerSrc = "";
-  const data = new Uint8Array(buffer);
-  const pdf = await getDocument({ data }).promise;
-  const pages: string[] = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    pages.push(
-      content.items
-        .map((item) => ("str" in item ? (item as { str: string }).str : ""))
-        .join(" ")
-    );
-  }
-  return pages.join("\n").trim();
+  const { extractText, getDocumentProxy } = await import("unpdf");
+  const pdf = await getDocumentProxy(new Uint8Array(buffer));
+  const { text } = await extractText(pdf, { mergePages: true });
+  return text.trim();
 }
 
 export async function extractFacturaFromPdf(params: {
