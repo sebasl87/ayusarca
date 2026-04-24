@@ -1,7 +1,5 @@
 import OpenAI from "openai";
 import { z } from "zod";
-// @ts-expect-error — no bundled types in some versions
-import pdfParse from "pdf-parse";
 
 const extractionSchema = z.object({
   cuit_emisor: z.string().regex(/^[0-9]{11}$/).nullable(),
@@ -38,14 +36,30 @@ function createClient() {
   });
 }
 
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
+  GlobalWorkerOptions.workerSrc = "";
+  const data = new Uint8Array(buffer);
+  const pdf = await getDocument({ data }).promise;
+  const pages: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    pages.push(
+      content.items
+        .map((item) => ("str" in item ? (item as { str: string }).str : ""))
+        .join(" ")
+    );
+  }
+  return pages.join("\n").trim();
+}
+
 export async function extractFacturaFromPdf(params: {
   buffer: Buffer;
 }): Promise<{ data: FacturaExtraction; raw: unknown }> {
   const client = createClient();
 
-  // Extraer texto del PDF con pdf-parse (no requiere binarios nativos)
-  const pdfData = await pdfParse(params.buffer) as { text: string };
-  const pdfText = pdfData.text?.trim() ?? "";
+  const pdfText = await extractPdfText(params.buffer);
 
   const prompt = `${EXTRACTION_PROMPT}\n\nContenido extraído del PDF:\n${pdfText}`;
 
