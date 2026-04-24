@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 
-export const maxDuration = 90; // segundos — necesario para el login a ARCA via Playwright
+export const maxDuration = 90;
 
-import { QueueEvents } from "bullmq";
 import type { Job } from "bullmq";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getQueue, getRedisConnection } from "@/lib/queue/bullmq";
+import { getQueue } from "@/lib/queue/bullmq";
 
 export async function POST() {
   const supabase = createSupabaseServerClient();
@@ -51,24 +50,32 @@ export async function POST() {
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 
-  let queueEvents: QueueEvents | null = null;
-  try {
-    queueEvents = new QueueEvents("arca-test-credentials", {
-      connection: getRedisConnection(),
-    });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "redis_not_configured";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
-  }
-
+  // Upstash Redis no soporta pub/sub persistente — polling con HGET en vez de waitUntilFinished
   try {
     if (!job) throw new Error("queue_error");
-    const result = await job.waitUntilFinished(queueEvents, 80000);
-    return NextResponse.json({ ok: true, result });
+    const queue = getQueue("arca-test-credentials");
+    const TIMEOUT = 80_000;
+    const INTERVAL = 2_000;
+    const deadline = Date.now() + TIMEOUT;
+
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, INTERVAL));
+      const current = await queue.getJob(job.id!);
+      if (!current) break;
+      const state = await current.getState();
+      if (state === "completed") {
+        return NextResponse.json({ ok: true, result: current.returnvalue });
+      }
+      if (state === "failed") {
+        return NextResponse.json(
+          { ok: false, error: current.failedReason ?? "job_failed" },
+          { status: 500 }
+        );
+      }
+    }
+    return NextResponse.json({ ok: false, error: "timeout_waiting_for_job" }, { status: 504 });
   } catch (e) {
     const message = e instanceof Error ? e.message : "error";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
-  } finally {
-    await queueEvents?.close();
   }
 }
