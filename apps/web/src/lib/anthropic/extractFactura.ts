@@ -1,6 +1,7 @@
+import OpenAI from "openai";
 import { z } from "zod";
-
-import { createAnthropicClient } from "./client";
+// @ts-expect-error — no bundled types in some versions
+import pdfParse from "pdf-parse";
 
 const extractionSchema = z.object({
   cuit_emisor: z.string().regex(/^[0-9]{11}$/).nullable(),
@@ -18,7 +19,7 @@ const extractionSchema = z.object({
 export type FacturaExtraction = z.infer<typeof extractionSchema>;
 
 const EXTRACTION_PROMPT =
-  'Sos un asistente experto en facturas argentinas (ARCA/AFIP). Te paso la imagen de una factura. Extrae los siguientes datos en formato JSON estricto. Si algún dato no está o no se ve claro, devolvelo como null. Responder SOLO con un JSON válido, sin texto antes ni después, con la siguiente estructura: {"cuit_emisor":"20304050607","razon_social":"EMPRESA SA","tipo_comprobante":"A","punto_venta":"0001","numero_comprobante":"00012345","fecha_emision":"2026-04-15","monto_total":12345.67,"categoria_sugerida":"indumentaria","confianza":0.95,"observaciones":null}';
+  'Sos un asistente experto en facturas argentinas (ARCA/AFIP). Extrae los siguientes datos en formato JSON estricto. Si algún dato no está o no se ve claro, devolvelo como null. Responder SOLO con un JSON válido, sin texto antes ni después, con la siguiente estructura: {"cuit_emisor":"20304050607","razon_social":"EMPRESA SA","tipo_comprobante":"A","punto_venta":"0001","numero_comprobante":"00012345","fecha_emision":"2026-04-15","monto_total":12345.67,"categoria_sugerida":"indumentaria","confianza":0.95,"observaciones":null}';
 
 function tryParseJson(text: string) {
   try {
@@ -30,46 +31,36 @@ function tryParseJson(text: string) {
   }
 }
 
+function createClient() {
+  return new OpenAI({
+    apiKey: process.env.XAI_API_KEY!,
+    baseURL: "https://api.x.ai/v1",
+  });
+}
+
 export async function extractFacturaFromPdf(params: {
   buffer: Buffer;
 }): Promise<{ data: FacturaExtraction; raw: unknown }> {
-  const client = createAnthropicClient();
-  const base64 = params.buffer.toString("base64");
+  const client = createClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdfContent: any[] = [
-    { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
-    { type: "text", text: EXTRACTION_PROMPT },
-  ];
+  // Extraer texto del PDF con pdf-parse (no requiere binarios nativos)
+  const pdfData = await pdfParse(params.buffer) as { text: string };
+  const pdfText = pdfData.text?.trim() ?? "";
 
-  const makeRequest = () =>
-    client.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 1200,
-      temperature: 0,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      messages: [{ role: "user", content: pdfContent }],
-    });
+  const prompt = `${EXTRACTION_PROMPT}\n\nContenido extraído del PDF:\n${pdfText}`;
 
-  const res = await makeRequest();
-  const text = res.content
-    .filter((c) => c.type === "text")
-    .map((c) => c.text)
-    .join("\n")
-    .trim();
+  const res = await client.chat.completions.create({
+    model: "grok-3",
+    max_tokens: 1200,
+    messages: [{ role: "user", content: prompt }],
+  });
 
+  const text = res.choices[0]?.message?.content?.trim() ?? "";
   let parsed: unknown;
   try {
     parsed = tryParseJson(text);
   } catch {
-    const retry = await makeRequest();
-    const retryText = retry.content
-      .filter((c) => c.type === "text")
-      .map((c) => c.text)
-      .join("\n")
-      .trim();
-    parsed = tryParseJson(retryText);
-    return { data: extractionSchema.parse(parsed), raw: retry };
+    throw new Error(`grok_parse_failed: ${text.slice(0, 200)}`);
   }
 
   return { data: extractionSchema.parse(parsed), raw: res };
@@ -79,68 +70,30 @@ export async function extractFacturaFromImage(params: {
   buffer: Buffer;
   mimeType: "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 }): Promise<{ data: FacturaExtraction; raw: unknown }> {
-  const client = createAnthropicClient();
+  const client = createClient();
   const base64 = params.buffer.toString("base64");
+  const dataUrl = `data:${params.mimeType};base64,${base64}`;
 
-  const res = await client.messages.create({
-    model: "claude-sonnet-4-5",
+  const res = await client.chat.completions.create({
+    model: "grok-2-vision-1212",
     max_tokens: 1200,
-    temperature: 0,
     messages: [
       {
         role: "user",
         content: [
           { type: "text", text: EXTRACTION_PROMPT },
-          {
-            type: "image",
-            source: { type: "base64", media_type: params.mimeType, data: base64 },
-          },
+          { type: "image_url", image_url: { url: dataUrl } },
         ],
       },
     ],
   });
 
-  const text = res.content
-    .filter((c) => c.type === "text")
-    .map((c) => c.text)
-    .join("\n")
-    .trim();
-
+  const text = res.choices[0]?.message?.content?.trim() ?? "";
   let parsed: unknown;
   try {
     parsed = tryParseJson(text);
   } catch {
-    const retry = await client.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 1200,
-      temperature: 0,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `${EXTRACTION_PROMPT}\n\nRecordatorio: respondé SOLO JSON válido.`,
-            },
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: params.mimeType,
-                data: base64,
-              },
-            },
-          ],
-        },
-      ],
-    });
-    const retryText = retry.content
-      .filter((c) => c.type === "text")
-      .map((c) => c.text)
-      .join("\n")
-      .trim();
-    parsed = tryParseJson(retryText);
-    return { data: extractionSchema.parse(parsed), raw: retry };
+    throw new Error(`grok_parse_failed: ${text.slice(0, 200)}`);
   }
 
   return { data: extractionSchema.parse(parsed), raw: res };
