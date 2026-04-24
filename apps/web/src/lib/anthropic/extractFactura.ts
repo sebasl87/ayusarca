@@ -33,8 +33,8 @@ function tryParseJson(text: string) {
 
 function createClient() {
   return new OpenAI({
-    apiKey: process.env.XAI_API_KEY!,
-    baseURL: "https://api.x.ai/v1",
+    apiKey: process.env.GROQ_API_KEY!,
+    baseURL: "https://api.groq.com/openai/v1",
   });
 }
 
@@ -50,7 +50,7 @@ export async function extractFacturaFromPdf(params: {
   const prompt = `${EXTRACTION_PROMPT}\n\nContenido extraído del PDF:\n${pdfText}`;
 
   const res = await client.chat.completions.create({
-    model: "grok-3",
+    model: "llama-3.3-70b-versatile",
     max_tokens: 1200,
     messages: [{ role: "user", content: prompt }],
   });
@@ -75,7 +75,7 @@ export async function extractFacturaFromImage(params: {
   const dataUrl = `data:${params.mimeType};base64,${base64}`;
 
   const res = await client.chat.completions.create({
-    model: "grok-2-vision-1212",
+    model: "llama-3.2-11b-vision-preview",
     max_tokens: 1200,
     messages: [
       {
