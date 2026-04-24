@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import sharp from "sharp";
 
-import { extractFacturaFromImage } from "@/lib/anthropic/extractFactura";
+import { extractFacturaFromImage, extractFacturaFromPdf } from "@/lib/anthropic/extractFactura";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const bodySchema = z.object({
@@ -73,35 +73,32 @@ export async function POST(req: Request) {
 
   const baseBytes = Buffer.from(await download.arrayBuffer());
 
-  let imageBuffer: Buffer;
   try {
+    let extractionResult: Awaited<ReturnType<typeof extractFacturaFromImage>>;
+
     if (factura.mime_type === "application/pdf") {
-      imageBuffer = await sharp(baseBytes, { density: 220 }).png().toBuffer();
+      extractionResult = await extractFacturaFromPdf({ buffer: baseBytes });
     } else {
-      imageBuffer = await sharp(baseBytes).png().toBuffer();
+      let imageBuffer: Buffer;
+      try {
+        imageBuffer = await sharp(baseBytes).png().toBuffer();
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "image_convert_failed";
+        await supabase
+          .from("facturas")
+          .update({ status: "failed", error_message: message, updated_at: new Date().toISOString() })
+          .eq("id", facturaId)
+          .eq("user_id", user.id);
+        return NextResponse.json({ ok: false, error: message }, { status: 500 });
+      }
+      const imageInput = inferImageInput({ buffer: imageBuffer, mimeType: "image/png" });
+      if (!imageInput) {
+        return NextResponse.json({ ok: false, error: "invalid_image" }, { status: 500 });
+      }
+      extractionResult = await extractFacturaFromImage(imageInput);
     }
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "pdf_or_image_convert_failed";
-    await supabase
-      .from("facturas")
-      .update({
-        status: "failed",
-        error_message: message,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", facturaId)
-      .eq("user_id", user.id);
 
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
-  }
-
-  const imageInput = inferImageInput({ buffer: imageBuffer, mimeType: "image/png" });
-  if (!imageInput) {
-    return NextResponse.json({ ok: false, error: "invalid_image" }, { status: 500 });
-  }
-
-  try {
-    const { data, raw } = await extractFacturaFromImage(imageInput);
+    const { data, raw } = extractionResult;
 
     await supabase
       .from("facturas")

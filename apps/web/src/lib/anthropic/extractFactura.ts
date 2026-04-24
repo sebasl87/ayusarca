@@ -30,6 +30,51 @@ function tryParseJson(text: string) {
   }
 }
 
+export async function extractFacturaFromPdf(params: {
+  buffer: Buffer;
+}): Promise<{ data: FacturaExtraction; raw: unknown }> {
+  const client = createAnthropicClient();
+  const base64 = params.buffer.toString("base64");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfContent: any[] = [
+    { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
+    { type: "text", text: EXTRACTION_PROMPT },
+  ];
+
+  const makeRequest = () =>
+    client.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 1200,
+      temperature: 0,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      messages: [{ role: "user", content: pdfContent }],
+    });
+
+  const res = await makeRequest();
+  const text = res.content
+    .filter((c) => c.type === "text")
+    .map((c) => c.text)
+    .join("\n")
+    .trim();
+
+  let parsed: unknown;
+  try {
+    parsed = tryParseJson(text);
+  } catch {
+    const retry = await makeRequest();
+    const retryText = retry.content
+      .filter((c) => c.type === "text")
+      .map((c) => c.text)
+      .join("\n")
+      .trim();
+    parsed = tryParseJson(retryText);
+    return { data: extractionSchema.parse(parsed), raw: retry };
+  }
+
+  return { data: extractionSchema.parse(parsed), raw: res };
+}
+
 export async function extractFacturaFromImage(params: {
   buffer: Buffer;
   mimeType: "image/jpeg" | "image/png" | "image/gif" | "image/webp";
