@@ -219,11 +219,12 @@ export function FacturasList() {
         cell: (ctx: CellContext<FacturaRow, string | null | undefined>) => {
           const status = ctx.getValue() ?? "—";
           const error = ctx.row.original.error_message;
+          const shortError = error ? (error.length > 80 ? error.slice(0, 80) + "…" : error) : null;
           return (
             <div className="space-y-1">
               <Badge variant={statusVariant(status)}>{status}</Badge>
-              {error ? (
-                <div className="text-xs text-destructive">{error}</div>
+              {shortError ? (
+                <div className="max-w-[200px] text-xs text-destructive" title={error ?? undefined}>{shortError}</div>
               ) : null}
             </div>
           );

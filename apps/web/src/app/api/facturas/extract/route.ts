@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import sharp from "sharp";
 
 import { extractFacturaFromImage, extractFacturaFromPdf } from "@/lib/anthropic/extractFactura";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -79,21 +78,14 @@ export async function POST(req: Request) {
     if (factura.mime_type === "application/pdf") {
       extractionResult = await extractFacturaFromPdf({ buffer: baseBytes });
     } else {
-      let imageBuffer: Buffer;
-      try {
-        imageBuffer = await sharp(baseBytes).png().toBuffer();
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "image_convert_failed";
+      const imageInput = inferImageInput({ buffer: baseBytes, mimeType: factura.mime_type ?? "" });
+      if (!imageInput) {
         await supabase
           .from("facturas")
-          .update({ status: "failed", error_message: message, updated_at: new Date().toISOString() })
+          .update({ status: "failed", error_message: "unsupported_mime_type", updated_at: new Date().toISOString() })
           .eq("id", facturaId)
           .eq("user_id", user.id);
-        return NextResponse.json({ ok: false, error: message }, { status: 500 });
-      }
-      const imageInput = inferImageInput({ buffer: imageBuffer, mimeType: "image/png" });
-      if (!imageInput) {
-        return NextResponse.json({ ok: false, error: "invalid_image" }, { status: 500 });
+        return NextResponse.json({ ok: false, error: "unsupported_mime_type" }, { status: 400 });
       }
       extractionResult = await extractFacturaFromImage(imageInput);
     }
