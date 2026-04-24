@@ -29,7 +29,7 @@ export async function arcaKeepalive(jsessionid: string) {
   const http = createClient(jsessionid);
   const res = await http.get(`/radig/jsp/ajax.do?f=keepalive&_=${Date.now()}`);
 
-  if (res.status === 403 || res.status === 429) {
+  if (res.status === 429) {
     throw new ArcaRateLimitError(`arca_keepalive_${res.status}`);
   }
 

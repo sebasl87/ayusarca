@@ -86,11 +86,8 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
 
     if (currentUrl.includes("menu_sel_empresa")) {
       process.stderr.write("[login] step:12 persona selection screen detected\n");
-
-      // Esperar a que la página esté estable antes de tocar el DOM
       await page.waitForLoadState("domcontentloaded", { timeout: 10000 }).catch(() => {});
 
-      // Usar evaluate() para evitar que Playwright bloquee en navegación pendiente
       const hasLink = await page.evaluate(() => {
         const selectors = ["table a", ".contenido a", "a[href*='verMenu']", "a[href*='empresa']"];
         for (const sel of selectors) {
@@ -102,8 +99,12 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
       process.stderr.write(`[login] step:12b hasLink: ${hasLink}\n`);
 
       if (hasLink) {
-        // Escuchar nueva pestaña ANTES del click
-        const personaTabPromise = context.waitForEvent("page", { timeout: 5000 }).catch(() => null);
+        // Esperar a que la URL cambie MIENTRAS hacemos click — garantiza que la
+        // navegación completó antes de extraer el JSESSIONID
+        const newTabPromise = context.waitForEvent("page", { timeout: 5000 }).catch(() => null);
+        const navPromise = page
+          .waitForURL((url) => !url.toString().includes("menu_sel_empresa"), { timeout: 15000 })
+          .catch(() => null);
 
         await page.evaluate(() => {
           const selectors = ["table a", ".contenido a", "a[href*='verMenu']", "a[href*='empresa']"];
@@ -112,15 +113,15 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
             if (link) { link.click(); return; }
           }
         });
-        process.stderr.write("[login] step:13 persona link clicked via evaluate\n");
+        process.stderr.write("[login] step:13 persona link clicked\n");
 
-        const personaTab = await personaTabPromise;
-        if (personaTab) {
+        const newTab = await newTabPromise;
+        if (newTab) {
           process.stderr.write("[login] step:13b persona opened new tab\n");
-          await personaTab.waitForLoadState("domcontentloaded", { timeout: 15000 }).catch(() => {});
-          page = personaTab;
+          await newTab.waitForLoadState("domcontentloaded", { timeout: 15000 }).catch(() => {});
+          page = newTab;
         } else {
-          await page.waitForLoadState("domcontentloaded", { timeout: 15000 }).catch(() => {});
+          await navPromise;
         }
         process.stderr.write(`[login] step:14 after persona click — URL: ${page.url()}\n`);
       }
