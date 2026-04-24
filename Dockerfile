@@ -10,7 +10,7 @@ COPY .yarn/ ./.yarn/
 COPY packages/shared/package.json ./packages/shared/
 COPY apps/worker/package.json ./apps/worker/
 
-RUN yarn install --immutable
+RUN yarn install
 
 # playwright install --with-deps maneja los paquetes de sistema correctamente según el OS
 RUN node_modules/.bin/playwright install chromium --with-deps
