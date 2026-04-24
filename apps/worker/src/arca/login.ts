@@ -88,32 +88,51 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
       process.stderr.write("[login] step:12 persona selection screen detected\n");
       await page.waitForLoadState("domcontentloaded", { timeout: 10000 }).catch(() => {});
 
-      const hasLink = await page.evaluate(() => {
-        const selectors = ["table a", ".contenido a", "a[href*='verMenu']", "a[href*='empresa']"];
+      // Log the HTML to identify the exact element type
+      const pageHtml = await page.evaluate(() => document.body?.innerHTML?.slice(0, 2000) ?? "").catch(() => "");
+      process.stderr.write(`[login] step:12a page HTML snippet: ${pageHtml}\n`);
+
+      const PERSONA_SELECTORS = [
+        "table a",
+        ".contenido a",
+        "a[href*='verMenu']",
+        "a[href*='empresa']",
+        "input[type='submit']",
+        "button[type='submit']",
+        "button",
+      ];
+
+      const foundSelector = await page.evaluate((selectors: string[]) => {
         for (const sel of selectors) {
-          if (document.querySelector(sel)) return true;
+          const el = document.querySelector(sel);
+          if (el) return sel;
         }
-        return false;
-      }).catch(() => false);
+        return null;
+      }, PERSONA_SELECTORS).catch(() => null);
 
-      process.stderr.write(`[login] step:12b hasLink: ${hasLink}\n`);
+      process.stderr.write(`[login] step:12b foundSelector: ${foundSelector}\n`);
 
-      if (hasLink) {
-        // Esperar a que la URL cambie MIENTRAS hacemos click — garantiza que la
-        // navegación completó antes de extraer el JSESSIONID
+      if (foundSelector) {
         const newTabPromise = context.waitForEvent("page", { timeout: 5000 }).catch(() => null);
         const navPromise = page
           .waitForURL((url) => !url.toString().includes("menu_sel_empresa"), { timeout: 15000 })
           .catch(() => null);
 
-        await page.evaluate(() => {
-          const selectors = ["table a", ".contenido a", "a[href*='verMenu']", "a[href*='empresa']"];
+        await page.evaluate((selectors: string[]) => {
           for (const sel of selectors) {
-            const link = document.querySelector(sel) as HTMLAnchorElement | null;
-            if (link) { link.click(); return; }
+            const el = document.querySelector(sel) as HTMLElement | null;
+            if (el) {
+              if (sel === "button[type='submit']" || sel === "input[type='submit']" || sel === "button") {
+                // Try submitting the parent form first
+                const form = el.closest("form") as HTMLFormElement | null;
+                if (form) { form.submit(); return; }
+              }
+              el.click();
+              return;
+            }
           }
-        });
-        process.stderr.write("[login] step:13 persona link clicked\n");
+        }, PERSONA_SELECTORS);
+        process.stderr.write("[login] step:13 persona element clicked\n");
 
         const newTab = await newTabPromise;
         if (newTab) {
