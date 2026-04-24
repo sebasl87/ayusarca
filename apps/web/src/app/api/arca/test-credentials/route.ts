@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const maxDuration = 90; // segundos — necesario para el login a ARCA via Playwright
+
 import { QueueEvents } from "bullmq";
 import type { Job } from "bullmq";
 
@@ -61,7 +63,7 @@ export async function POST() {
 
   try {
     if (!job) throw new Error("queue_error");
-    const result = await job.waitUntilFinished(queueEvents, 25000);
+    const result = await job.waitUntilFinished(queueEvents, 80000);
     return NextResponse.json({ ok: true, result });
   } catch (e) {
     const message = e instanceof Error ? e.message : "error";
