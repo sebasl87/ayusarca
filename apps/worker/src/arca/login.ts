@@ -93,13 +93,11 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
       process.stderr.write(`[login] step:12a page HTML snippet: ${pageHtml}\n`);
 
       const PERSONA_SELECTORS = [
-        "table a",
-        ".contenido a",
-        "a[href*='verMenu']",
-        "a[href*='empresa']",
+        "input.btn_empresa",
+        "form[name='seleccionaEmpresaForm'] input[type='submit']",
+        "form[name='seleccionaEmpresaForm'] input",
+        "table input[type='submit']",
         "input[type='submit']",
-        "button[type='submit']",
-        "button",
       ];
 
       const foundSelector = await page.evaluate((selectors: string[]) => {
@@ -113,24 +111,20 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
       process.stderr.write(`[login] step:12b foundSelector: ${foundSelector}\n`);
 
       if (foundSelector) {
-        const newTabPromise = context.waitForEvent("page", { timeout: 5000 }).catch(() => null);
-
-        // Usar el locator nativo de Playwright — maneja eventos y navegación correctamente
+        // Submittir el form directamente — más confiable que click en JSP
         await Promise.all([
           page
             .waitForURL((url) => !url.toString().includes("menu_sel_empresa"), { timeout: 15000 })
             .catch(() => {}),
-          page.locator(foundSelector).first().click({ timeout: 10000 }),
+          page.evaluate(() => {
+            const form = document.querySelector("form[name='seleccionaEmpresaForm']") as HTMLFormElement | null;
+            if (form) { form.submit(); return; }
+            const btn = document.querySelector("input.btn_empresa, input[type='submit']") as HTMLElement | null;
+            if (btn) btn.click();
+          }),
         ]);
-        process.stderr.write(`[login] step:13 persona clicked — URL now: ${page.url()}\n`);
-
-        const newTab = await newTabPromise;
-        if (newTab) {
-          process.stderr.write("[login] step:13b persona opened new tab\n");
-          await newTab.waitForLoadState("domcontentloaded", { timeout: 15000 }).catch(() => {});
-          page = newTab;
-        }
-        process.stderr.write(`[login] step:14 after persona click — URL: ${page.url()}\n`);
+        process.stderr.write(`[login] step:13 persona form submitted — URL now: ${page.url()}\n`);
+        process.stderr.write(`[login] step:14 after persona submit — URL: ${page.url()}\n`);
       }
     }
 
