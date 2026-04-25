@@ -1,5 +1,6 @@
 import { ArcaFormAdapter } from "./base";
 import { parseArcaResponse } from "../parseResponse";
+import { logger } from "../../lib/logger";
 
 export type IndumentariaInput = {
   cuit: string;
@@ -39,8 +40,13 @@ export class IndumentariaAdapter extends ArcaFormAdapter<IndumentariaInput> {
       body.toString()
     );
 
-    this.checkStatus(res.status, String(res.data));
-    const parsed = parseArcaResponse(String(res.data));
+    const bodyStr = String(res.data ?? "");
+    logger.info(
+      { status: res.status, bodySnippet: bodyStr.slice(0, 2000) },
+      "indumentaria_post_response"
+    );
+    this.checkStatus(res.status, bodyStr);
+    const parsed = parseArcaResponse(bodyStr);
     if (!parsed.success) return { success: false, error: parsed.error };
     return { success: true, arcaId: parsed.arcaId };
   }
