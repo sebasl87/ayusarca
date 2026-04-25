@@ -220,7 +220,7 @@ export async function cargarDeduccion(job: Job<CargarDeduccionJobData>) {
   } catch (e) {
     const message = e instanceof Error ? e.message : "error";
     if (e instanceof ValidationError || e instanceof ArcaValidationError) job.discard();
-    if (e instanceof ArcaSessionExpiredError) invalidateArcaSession(userId);
+    if (e instanceof ArcaSessionExpiredError) await invalidateArcaSession(userId);
     if (e instanceof ArcaRateLimitError) logger.error({ err: e }, "arca_rate_limited");
     logger.error({ err: e, facturaId, userId }, "cargar_deduccion_failed");
 

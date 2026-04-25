@@ -38,8 +38,16 @@ function parseEncryptedCookie(value: string | null) {
   }
 }
 
-export function invalidateArcaSession(userId: string) {
+export async function invalidateArcaSession(userId: string) {
   sessionCache.delete(userId);
+  await supabaseAdmin
+    .from("arca_credentials")
+    .update({
+      last_session_cookie: null,
+      last_session_expires_at: new Date(0).toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
 }
 
 export async function getArcaSession(params: { userId: string; cuit: string; claveFiscal: string }) {
