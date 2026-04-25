@@ -139,10 +139,17 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
     const allCookies = await context.cookies();
     process.stderr.write(`[login] step:16b all cookies: ${JSON.stringify(allCookies.map((c) => ({ name: c.name, domain: c.domain, path: c.path })))}\n`);
 
-    let jsessionid = allCookies.find((c) => c.name === "JSESSIONID")?.value;
+    let jsessionid = allCookies.find(
+      (c) => c.name === "JSESSIONID" && c.domain.includes("serviciosjava2")
+    )?.value;
+    // Fallback: URL path-encoded jsessionid (serviciosjava2 sometimes embeds it)
     if (!jsessionid) {
       const match = page.url().match(/jsessionid=([A-F0-9.]+)/i);
       if (match) jsessionid = match[1];
+    }
+    // Last resort: any JSESSIONID cookie
+    if (!jsessionid) {
+      jsessionid = allCookies.find((c) => c.name === "JSESSIONID")?.value;
     }
     // Fallback: extraer del HTML embebido (algunos JSP Java lo emiten en el <form> o JS)
     if (!jsessionid) {
