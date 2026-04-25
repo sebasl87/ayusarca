@@ -15,6 +15,7 @@ export type EducacionInput = {
 
 export class EducacionAdapter extends ArcaFormAdapter<EducacionInput> {
   async guardar(data: EducacionInput) {
+    await this.warmUpSession();
     const body = new URLSearchParams({
       numeroDoc: data.cuit,
       razonSocial: data.razonSocial,

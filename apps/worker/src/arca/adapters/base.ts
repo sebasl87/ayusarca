@@ -36,6 +36,12 @@ export abstract class ArcaFormAdapter<Input> {
     }
   }
 
+  // Navegar al menú de deducciones antes del POST para inicializar el estado
+  // de sesión Java — sin esto ARCA devuelve 403 en los endpoints de guardar
+  protected async warmUpSession(): Promise<void> {
+    await this.http.get("/radig/jsp/verMenuDeducciones.do").catch(() => {});
+  }
+
   abstract guardar(
     data: Input
   ): Promise<{ success: boolean; arcaId?: string; error?: string }>;

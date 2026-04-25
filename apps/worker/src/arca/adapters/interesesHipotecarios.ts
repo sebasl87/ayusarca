@@ -15,6 +15,7 @@ export type InteresesHipotecariosInput = {
 
 export class InteresesHipotecariosAdapter extends ArcaFormAdapter<InteresesHipotecariosInput> {
   async guardar(data: InteresesHipotecariosInput) {
+    await this.warmUpSession();
     const body = new URLSearchParams({
       numeroDoc: data.cuit,
       razonSocial: data.razonSocial,

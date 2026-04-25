@@ -15,6 +15,7 @@ export type DonacionesInput = {
 
 export class DonacionesAdapter extends ArcaFormAdapter<DonacionesInput> {
   async guardar(data: DonacionesInput) {
+    await this.warmUpSession();
     const body = new URLSearchParams({
       numeroDoc: data.cuit,
       razonSocial: data.razonSocial,

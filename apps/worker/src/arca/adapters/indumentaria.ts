@@ -15,6 +15,7 @@ export type IndumentariaInput = {
 
 export class IndumentariaAdapter extends ArcaFormAdapter<IndumentariaInput> {
   async guardar(data: IndumentariaInput) {
+    await this.warmUpSession();
     const body = new URLSearchParams({
       numeroDoc: data.cuit,
       razonSocial: data.razonSocial,
