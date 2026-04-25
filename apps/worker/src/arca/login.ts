@@ -133,6 +133,16 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
       }
     }
 
+    // If we ended up on determinarContribuyente (year-selection step), navigate to main menu
+    // to ensure the server-side session state is fully initialised before we close the browser.
+    const postPersonaUrl = page.url();
+    if (postPersonaUrl.includes("determinarContribuyente") || postPersonaUrl.includes("seleccionaEmpresa")) {
+      process.stderr.write(`[login] step:14b navigating to verMenuEmpleado to complete session init\n`);
+      await page.goto("https://serviciosjava2.afip.gob.ar/radig/jsp/verMenuEmpleado.do", { timeout: 15000 }).catch(() => {});
+      await page.waitForLoadState("domcontentloaded", { timeout: 10000 }).catch(() => {});
+      process.stderr.write(`[login] step:14c after verMenuEmpleado nav: ${page.url()}\n`);
+    }
+
     // Final wait — make sure the page is stable
     process.stderr.write("[login] step:15 final waitForLoadState\n");
     await page.waitForLoadState("domcontentloaded", { timeout: 15000 }).catch(() => {});

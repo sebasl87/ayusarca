@@ -15,7 +15,7 @@ export type GastosMedicosInput = {
 
 export class GastosMedicosAdapter extends ArcaFormAdapter<GastosMedicosInput> {
   async guardar(data: GastosMedicosInput) {
-    await this.warmUpSession();
+    await this.warmUpSession("/radig/jsp/verGastosMedicos.do");
     const body = new URLSearchParams({
       numeroDoc: data.cuit,
       razonSocial: data.razonSocial,

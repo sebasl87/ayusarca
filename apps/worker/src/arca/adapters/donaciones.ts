@@ -15,7 +15,7 @@ export type DonacionesInput = {
 
 export class DonacionesAdapter extends ArcaFormAdapter<DonacionesInput> {
   async guardar(data: DonacionesInput) {
-    await this.warmUpSession();
+    await this.warmUpSession("/radig/jsp/verDonaciones.do");
     const body = new URLSearchParams({
       numeroDoc: data.cuit,
       razonSocial: data.razonSocial,

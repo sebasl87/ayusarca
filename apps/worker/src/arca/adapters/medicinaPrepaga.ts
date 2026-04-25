@@ -15,7 +15,7 @@ export type MedicinaPrepagaInput = {
 
 export class MedicinaPrepagaAdapter extends ArcaFormAdapter<MedicinaPrepagaInput> {
   async guardar(data: MedicinaPrepagaInput) {
-    await this.warmUpSession();
+    await this.warmUpSession("/radig/jsp/verMedicinaPrepaga.do");
     const body = new URLSearchParams({
       numeroDoc: data.cuit,
       razonSocial: data.razonSocial,

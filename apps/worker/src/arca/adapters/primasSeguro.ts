@@ -15,7 +15,7 @@ export type PrimasSeguroInput = {
 
 export class PrimasSeguroAdapter extends ArcaFormAdapter<PrimasSeguroInput> {
   async guardar(data: PrimasSeguroInput) {
-    await this.warmUpSession();
+    await this.warmUpSession("/radig/jsp/verPrimasSeguro.do");
     const body = new URLSearchParams({
       numeroDoc: data.cuit,
       razonSocial: data.razonSocial,

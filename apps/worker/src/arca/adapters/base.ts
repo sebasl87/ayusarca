@@ -3,6 +3,7 @@ import { wrapper } from "axios-cookiejar-support";
 import { CookieJar } from "tough-cookie";
 import { ArcaSessionExpiredError } from "@siradig/shared/errors";
 import type { ArcaSessionCookie } from "../login";
+import { logger } from "../../lib/logger";
 
 export abstract class ArcaFormAdapter<Input> {
   protected http: AxiosInstance;
@@ -24,13 +25,11 @@ export abstract class ArcaFormAdapter<Input> {
         baseURL: "https://serviciosjava2.afip.gob.ar",
         headers: {
           "User-Agent": "Mozilla/5.0",
-          Referer:
-            "https://serviciosjava2.afip.gob.ar/radig/jsp/verMenuDeducciones.do",
+          Referer: "https://serviciosjava2.afip.gob.ar/radig/jsp/verMenuDeducciones.do",
           Origin: "https://serviciosjava2.afip.gob.ar",
           "Content-Type": "application/x-www-form-urlencoded",
         },
         timeout: 15000,
-        // No lanzar error en 4xx/5xx — lo manejamos nosotros
         validateStatus: () => true,
       })
     );
@@ -42,10 +41,15 @@ export abstract class ArcaFormAdapter<Input> {
     }
   }
 
-  // Navegar al menú de deducciones antes del POST para inicializar el estado
-  // de sesión Java — sin esto ARCA devuelve 403 en los endpoints de guardar
-  protected async warmUpSession(): Promise<void> {
-    await this.http.get("/radig/jsp/verMenuDeducciones.do").catch(() => {});
+  // GET the specific form page before POSTing — initialises server-side JSP session
+  // state and detects expired sessions early. Throws ArcaSessionExpiredError if the
+  // page redirects to login (so the job retries with a fresh login).
+  protected async warmUpSession(formUrl: string): Promise<void> {
+    const res = await this.http.get(formUrl).catch(() => null);
+    if (!res) return;
+    const body = String(res.data ?? "");
+    logger.debug({ formUrl, status: res.status, bodySnippet: body.slice(0, 500) }, "warmup_response");
+    this.checkStatus(res.status, body);
   }
 
   abstract guardar(

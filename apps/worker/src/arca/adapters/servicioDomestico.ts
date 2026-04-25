@@ -15,7 +15,7 @@ export type ServicioDomesticoInput = {
 
 export class ServicioDomesticoAdapter extends ArcaFormAdapter<ServicioDomesticoInput> {
   async guardar(data: ServicioDomesticoInput) {
-    await this.warmUpSession();
+    await this.warmUpSession("/radig/jsp/verServicioDomestico.do");
     const body = new URLSearchParams({
       numeroDoc: data.cuit,
       razonSocial: data.razonSocial,

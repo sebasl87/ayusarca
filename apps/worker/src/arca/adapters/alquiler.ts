@@ -15,7 +15,7 @@ export type AlquilerInput = {
 
 export class AlquilerAdapter extends ArcaFormAdapter<AlquilerInput> {
   async guardar(data: AlquilerInput) {
-    await this.warmUpSession();
+    await this.warmUpSession("/radig/jsp/verAlquileres.do");
     const body = new URLSearchParams({
       numeroDoc: data.cuit,
       razonSocial: data.razonSocial,
