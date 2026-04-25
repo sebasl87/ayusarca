@@ -11,6 +11,7 @@ import { ArcaRateLimitError } from "@siradig/shared/errors";
 const cargarWorker = new Worker("cargar-deduccion", cargarDeduccion, {
   connection: redisConnection,
   concurrency: env.WORKER_CONCURRENCY,
+  drainDelay: 30,
   limiter: {
     max: 1,
     duration: env.ARCA_RATE_LIMIT_MS,
@@ -20,6 +21,7 @@ const cargarWorker = new Worker("cargar-deduccion", cargarDeduccion, {
 const testWorker = new Worker("arca-test-credentials", testCredentials, {
   connection: redisConnection,
   concurrency: 1,
+  drainDelay: 30,
   limiter: {
     max: 1,
     duration: env.ARCA_RATE_LIMIT_MS,
