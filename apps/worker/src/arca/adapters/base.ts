@@ -2,16 +2,22 @@ import axios, { type AxiosInstance } from "axios";
 import { wrapper } from "axios-cookiejar-support";
 import { CookieJar } from "tough-cookie";
 import { ArcaSessionExpiredError } from "@siradig/shared/errors";
+import type { ArcaSessionCookie } from "../login";
 
 export abstract class ArcaFormAdapter<Input> {
   protected http: AxiosInstance;
 
-  constructor(jsessionid: string) {
+  constructor(jsessionid: string, extraCookies: ArcaSessionCookie[] = []) {
     const jar = new CookieJar();
     jar.setCookieSync(
       `JSESSIONID=${jsessionid}; Path=/radig; Secure; HttpOnly`,
       "https://serviciosjava2.afip.gob.ar"
     );
+    for (const c of extraCookies) {
+      try {
+        jar.setCookieSync(`${c.name}=${c.value}; Path=/radig`, "https://serviciosjava2.afip.gob.ar");
+      } catch {}
+    }
     this.http = wrapper(
       axios.create({
         jar,

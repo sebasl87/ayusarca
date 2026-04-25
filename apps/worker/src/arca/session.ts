@@ -1,12 +1,13 @@
 import { ArcaCaptchaError, ArcaLoginError, ArcaSessionExpiredError } from "@siradig/shared/errors";
 
-import { loginToArca } from "./login";
+import { loginToArca, type ArcaSessionCookie } from "./login";
 import { arcaKeepalive } from "./keepalive";
 import { decryptCredential, encryptCredential } from "../lib/crypto/credentials";
 import { supabaseAdmin } from "../lib/supabase";
 
 type CachedSession = {
   jsessionid: string;
+  extraCookies: ArcaSessionCookie[];
   expiresAt: Date;
 };
 
@@ -66,7 +67,8 @@ export async function getArcaSession(params: { userId: string; cuit: string; cla
     const jsessionid = decryptCredential(encrypted, params.userId);
     try {
       await arcaKeepalive(jsessionid);
-      const session = { jsessionid, expiresAt: dbExpiresAt };
+      // DB path: no extraCookies stored — first 403 will invalidate and force re-login
+      const session = { jsessionid, extraCookies: [], expiresAt: dbExpiresAt };
       sessionCache.set(params.userId, session);
       return session;
     } catch (e) {
@@ -89,7 +91,7 @@ export async function getArcaSession(params: { userId: string; cuit: string; cla
         })
         .eq("user_id", params.userId);
 
-      const session = { jsessionid: login.jsessionid, expiresAt: login.expiresAt };
+      const session = { jsessionid: login.jsessionid, extraCookies: login.extraCookies, expiresAt: login.expiresAt };
       sessionCache.set(params.userId, session);
       return session;
     } catch (e) {
@@ -110,7 +112,7 @@ export async function keepaliveCachedSessions() {
       continue;
     }
     try {
-      await arcaKeepalive(session.jsessionid);
+      await arcaKeepalive(session.jsessionid, session.extraCookies);
       const nextExpiresAt = new Date(Date.now() + 20 * 60 * 1000);
       session.expiresAt = nextExpiresAt;
       sessionCache.set(userId, session);

@@ -2,8 +2,11 @@ import { chromium, type Browser, type Page, type BrowserContext } from "playwrig
 
 import { ArcaCaptchaError, ArcaLoginError } from "@siradig/shared/errors";
 
+export type ArcaSessionCookie = { name: string; value: string };
+
 export type ArcaLoginResult = {
   jsessionid: string;
+  extraCookies: ArcaSessionCookie[];
   expiresAt: Date;
 };
 
@@ -162,8 +165,11 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
     process.stderr.write(`[login] step:17 JSESSIONID: ${jsessionid ? "OK" : "NOT FOUND"} | URL: ${page.url()}\n`);
     if (!jsessionid) throw new ArcaLoginError("jsessionid_missing");
 
-    process.stderr.write("[login] step:18 returning — closing browser\n");
-    return { jsessionid, expiresAt: new Date(Date.now() + 20 * 60 * 1000) };
+    const extraCookies = allCookies
+      .filter((c) => c.domain.includes("serviciosjava2") && c.name !== "JSESSIONID")
+      .map((c) => ({ name: c.name, value: c.value }));
+    process.stderr.write(`[login] step:18 extraCookies: ${extraCookies.map((c) => c.name).join(", ")} — returning\n`);
+    return { jsessionid, extraCookies, expiresAt: new Date(Date.now() + 20 * 60 * 1000) };
   } catch (e) {
     if (e instanceof ArcaCaptchaError || e instanceof ArcaLoginError) throw e;
     throw new ArcaLoginError(`arca_login_failed: ${e instanceof Error ? e.message : String(e)}`);

@@ -155,7 +155,7 @@ export async function cargarDeduccion(job: Job<CargarDeduccionJobData>) {
     }
 
     const session = await getArcaSession({ userId, cuit: cred.cuit, claveFiscal });
-    const { jsessionid } = session;
+    const { jsessionid, extraCookies } = session;
 
     const baseInput = { cuit: cuitDoc, razonSocial, mes, monto, fechaEmision, tipoComprobante, puntoVenta, numero };
     const withConcepto = { ...baseInput, idConcepto };
@@ -165,31 +165,31 @@ export async function cargarDeduccion(job: Job<CargarDeduccionJobData>) {
     switch (categoria) {
       case "indumentaria":
       case "equipamiento":
-        res = await new IndumentariaAdapter(jsessionid).guardar({ ...baseInput, concepto: categoria });
+        res = await new IndumentariaAdapter(jsessionid, extraCookies).guardar({ ...baseInput, concepto: categoria });
         break;
       case "educacion":
-        res = await new EducacionAdapter(jsessionid).guardar(withConcepto);
+        res = await new EducacionAdapter(jsessionid, extraCookies).guardar(withConcepto);
         break;
       case "alquiler":
-        res = await new AlquilerAdapter(jsessionid).guardar(withConcepto);
+        res = await new AlquilerAdapter(jsessionid, extraCookies).guardar(withConcepto);
         break;
       case "medicina_prepaga":
-        res = await new MedicinaPrepagaAdapter(jsessionid).guardar(withConcepto);
+        res = await new MedicinaPrepagaAdapter(jsessionid, extraCookies).guardar(withConcepto);
         break;
       case "primas_seguro":
-        res = await new PrimasSeguroAdapter(jsessionid).guardar(withConcepto);
+        res = await new PrimasSeguroAdapter(jsessionid, extraCookies).guardar(withConcepto);
         break;
       case "donaciones":
-        res = await new DonacionesAdapter(jsessionid).guardar(withConcepto);
+        res = await new DonacionesAdapter(jsessionid, extraCookies).guardar(withConcepto);
         break;
       case "servicio_domestico":
-        res = await new ServicioDomesticoAdapter(jsessionid).guardar(withConcepto);
+        res = await new ServicioDomesticoAdapter(jsessionid, extraCookies).guardar(withConcepto);
         break;
       case "gastos_medicos":
-        res = await new GastosMedicosAdapter(jsessionid).guardar(withConcepto);
+        res = await new GastosMedicosAdapter(jsessionid, extraCookies).guardar(withConcepto);
         break;
       case "intereses_hipotecarios":
-        res = await new InteresesHipotecariosAdapter(jsessionid).guardar(withConcepto);
+        res = await new InteresesHipotecariosAdapter(jsessionid, extraCookies).guardar(withConcepto);
         break;
     }
 

@@ -3,13 +3,19 @@ import { wrapper } from "axios-cookiejar-support";
 import { CookieJar } from "tough-cookie";
 
 import { ArcaRateLimitError, ArcaSessionExpiredError } from "@siradig/shared/errors";
+import type { ArcaSessionCookie } from "./login";
 
-function createClient(jsessionid: string) {
+function createClient(jsessionid: string, extraCookies: ArcaSessionCookie[] = []) {
   const jar = new CookieJar();
   jar.setCookieSync(
     `JSESSIONID=${jsessionid}; Path=/radig; Secure; HttpOnly`,
     "https://serviciosjava2.afip.gob.ar"
   );
+  for (const c of extraCookies) {
+    try {
+      jar.setCookieSync(`${c.name}=${c.value}; Path=/radig`, "https://serviciosjava2.afip.gob.ar");
+    } catch {}
+  }
 
   return wrapper(
     axios.create({
@@ -25,8 +31,8 @@ function createClient(jsessionid: string) {
   );
 }
 
-export async function arcaKeepalive(jsessionid: string) {
-  const http = createClient(jsessionid);
+export async function arcaKeepalive(jsessionid: string, extraCookies: ArcaSessionCookie[] = []) {
+  const http = createClient(jsessionid, extraCookies);
   const res = await http.get(`/radig/jsp/ajax.do?f=keepalive&_=${Date.now()}`);
 
   if (res.status === 429) {
