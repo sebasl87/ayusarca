@@ -111,20 +111,22 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
       process.stderr.write(`[login] step:12b foundSelector: ${foundSelector}\n`);
 
       if (foundSelector) {
-        // Submittir el form directamente — más confiable que click en JSP
+        // Hacer click en el botón (NO form.submit()) para que el name/value del
+        // input.btn_empresa se incluya en el POST (idContribuyente)
         await Promise.all([
           page
-            .waitForURL((url) => !url.toString().includes("menu_sel_empresa"), { timeout: 15000 })
+            .waitForURL(
+              (url) => {
+                const s = url.toString();
+                return !s.includes("menu_sel_empresa") && !s.includes("setearContribuyente");
+              },
+              { timeout: 20000 }
+            )
             .catch(() => {}),
-          page.evaluate(() => {
-            const form = document.querySelector("form[name='seleccionaEmpresaForm']") as HTMLFormElement | null;
-            if (form) { form.submit(); return; }
-            const btn = document.querySelector("input.btn_empresa, input[type='submit']") as HTMLElement | null;
-            if (btn) btn.click();
-          }),
+          page.locator("input.btn_empresa, input[type='submit']").first().click({ timeout: 10000 }),
         ]);
-        process.stderr.write(`[login] step:13 persona form submitted — URL now: ${page.url()}\n`);
-        process.stderr.write(`[login] step:14 after persona submit — URL: ${page.url()}\n`);
+        process.stderr.write(`[login] step:13 persona button clicked — URL now: ${page.url()}\n`);
+        process.stderr.write(`[login] step:14 after persona click — URL: ${page.url()}\n`);
       }
     }
 
