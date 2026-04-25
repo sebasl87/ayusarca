@@ -38,6 +38,7 @@ export class IndumentariaAdapter extends ArcaFormAdapter<IndumentariaInput> {
       body.toString()
     );
 
+    this.checkStatus(res.status, String(res.data));
     const parsed = parseArcaResponse(String(res.data));
     if (!parsed.success) return { success: false, error: parsed.error };
     return { success: true, arcaId: parsed.arcaId };

@@ -1,6 +1,7 @@
 import axios, { type AxiosInstance } from "axios";
 import { wrapper } from "axios-cookiejar-support";
 import { CookieJar } from "tough-cookie";
+import { ArcaSessionExpiredError } from "@siradig/shared/errors";
 
 export abstract class ArcaFormAdapter<Input> {
   protected http: AxiosInstance;
@@ -23,8 +24,16 @@ export abstract class ArcaFormAdapter<Input> {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         timeout: 15000,
+        // No lanzar error en 4xx/5xx — lo manejamos nosotros
+        validateStatus: () => true,
       })
     );
+  }
+
+  protected checkStatus(status: number, body: string) {
+    if (status === 403 || body.includes("login.xhtml") || body.includes("contribuyente_/login")) {
+      throw new ArcaSessionExpiredError(`arca_session_expired_${status}`);
+    }
   }
 
   abstract guardar(

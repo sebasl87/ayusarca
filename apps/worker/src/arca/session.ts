@@ -38,6 +38,10 @@ function parseEncryptedCookie(value: string | null) {
   }
 }
 
+export function invalidateArcaSession(userId: string) {
+  sessionCache.delete(userId);
+}
+
 export async function getArcaSession(params: { userId: string; cuit: string; claveFiscal: string }) {
   const cached = sessionCache.get(params.userId);
   if (cached && isValidSession(cached)) return cached;

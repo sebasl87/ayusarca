@@ -114,33 +114,21 @@ export async function loginToArca(cuit: string, claveFiscal: string) {
 
       if (foundSelector) {
         const newTabPromise = context.waitForEvent("page", { timeout: 5000 }).catch(() => null);
-        const navPromise = page
-          .waitForURL((url) => !url.toString().includes("menu_sel_empresa"), { timeout: 15000 })
-          .catch(() => null);
 
-        await page.evaluate((selectors: string[]) => {
-          for (const sel of selectors) {
-            const el = document.querySelector(sel) as HTMLElement | null;
-            if (el) {
-              if (sel === "button[type='submit']" || sel === "input[type='submit']" || sel === "button") {
-                // Try submitting the parent form first
-                const form = el.closest("form") as HTMLFormElement | null;
-                if (form) { form.submit(); return; }
-              }
-              el.click();
-              return;
-            }
-          }
-        }, PERSONA_SELECTORS);
-        process.stderr.write("[login] step:13 persona element clicked\n");
+        // Usar el locator nativo de Playwright — maneja eventos y navegación correctamente
+        await Promise.all([
+          page
+            .waitForURL((url) => !url.toString().includes("menu_sel_empresa"), { timeout: 15000 })
+            .catch(() => {}),
+          page.locator(foundSelector).first().click({ timeout: 10000 }),
+        ]);
+        process.stderr.write(`[login] step:13 persona clicked — URL now: ${page.url()}\n`);
 
         const newTab = await newTabPromise;
         if (newTab) {
           process.stderr.write("[login] step:13b persona opened new tab\n");
           await newTab.waitForLoadState("domcontentloaded", { timeout: 15000 }).catch(() => {});
           page = newTab;
-        } else {
-          await navPromise;
         }
         process.stderr.write(`[login] step:14 after persona click — URL: ${page.url()}\n`);
       }
